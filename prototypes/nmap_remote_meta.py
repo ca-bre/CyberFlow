@@ -60,7 +60,7 @@ def nmap_scan(ip_address, port_range):
             print(f"Cannot scan port {port}")
 
 def main():
-    metasploitable_ip = input("Enter the IP address of the Metasploitable machine: ")
+    metasploitable_ip = input("Enter the IP address of the target machine: ")
     
     print("Select operation:")
     print("1. SSH Connection")
