@@ -45,5 +45,5 @@ for port in range(port_min, port_max + 1):
 # Wait for all threads to finish
 for thread in threads:
     thread.join()
-
+#haii
 print("Scan complete!")
