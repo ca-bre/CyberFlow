@@ -101,7 +101,7 @@ def main():
     print("Select operation:")
     print("1. SSH Connection")
     print("2. FTP Connection")
-    print("3. Nmap Port Scan")
+    print("3. Nmap Port Scan and Attack")   # nmap scan and attack functions
     choice = input("Enter your choice (1/2/3): ")
     
     if choice == '1':
@@ -112,7 +112,13 @@ def main():
         ftp_connect(metasploitable_ip, port)
     elif choice == '3':
         port_range = input("Enter the port range to scan (e.g., 20-100): ")
-        nmap_scan(metasploitable_ip, port_range)
+        open_ports = nmap_scan(metasploitable_ip, port_range)   # Store open ports
+        if open_ports:  # If open ports are found
+            for port in open_ports:
+                print(f"Attempting attack on {metasploitable_ip} on port {port}")
+                attack(metasploitable_ip, port) # Calls the attack function
+        else:
+            print("No open ports found")
     else:
         print("Invalid choice.")
 
