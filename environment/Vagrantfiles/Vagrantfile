@@ -1,0 +1,60 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+# Provides configurations for the Kali and Metasploitable VMs, main deployment for the CyberFlow Project
+
+# Vagrantfile API/syntax version. Don't touch unless you know what you're doing!
+VAGRANTFILE_API_VERSION = "2"
+
+Vagrant.configure("2") do |config|
+
+### KALI
+ config.vm.define "kali", autostart: false do |kali|
+   kali.vm.boot_timeout = 9999
+   config.ssh.password  = "vagrant"
+   config.ssh.username = "vagrant"
+
+   kali.vm.network "private_network", ip: "192.168.50.101", :adapter => 1, :mac => "080027f34a5d"
+   kali.vm.box = "kalilinux/rolling"
+   config.vm.box_version = "2020.3.0"
+   
+   kali.vm.provider "virtualbox" do |vb|
+     vb.gui = true
+   end
+
+   kali.vm.provider "vmware_workstation" do |vmware|
+     vmware.gui = true
+   end
+
+   kali.vm.provider "vmware_desktop" do |vmware|
+     vmware.gui = true
+   end
+   
+   kali.vm.provider "vmware_fusion" do |vmware|
+     vmware.gui = true
+   end
+ end
+
+### METASPLOITABLE
+  config.vm.define "metasploitable", autostart: false do |metasploitable|
+    metasploitable.vm.boot_timeout = 9999
+    config.ssh.password  = "msfadmin"
+    config.ssh.username = "msfadmin"
+    metasploitable.vm.box = "ProfessionallyEvil/metasploitable2"
+    metasploitable.vm.box_version = "0.0.1"
+    metasploitable.vm.network "private_network", ip: "192.168.50.102", :adapter => 1
+    metasploitable.vm.provider "virtualbox" do |vb|
+      vb.gui = true
+    end
+    metasploitable.vm.provider "vmware_workstation" do |vmware|
+      vmware.gui = true
+    end
+    metasploitable.vm.provider "vmware_desktop" do |vmware|
+      vmware.gui = true
+    end
+    metasploitable.vm.provider "vmware_fusion" do |vmware|
+      vmware.gui = true
+    end
+  end
+
+end
