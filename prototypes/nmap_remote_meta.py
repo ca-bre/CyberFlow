@@ -3,6 +3,7 @@ from ftplib import FTP
 import sys
 import nmap
 import re
+import subprocess   # Used for Metasploitable
 
 # Replace these with your actual credentials
 SSH_USERNAME = 'msfadmin'
@@ -51,13 +52,25 @@ def nmap_scan(ip_address, port_range):
     port_min, port_max = map(int, port_range.split('-'))
     
     print(f"Scanning ports {port_min} to {port_max} on {ip_address}")
+    # Store ports for attacking function
+    open_ports = []
     for port in range(port_min, port_max + 1):
         try:
             result = nm.scan(ip_address, str(port))
             port_status = result['scan'][ip_address]['tcp'][port]['state']
             print(f"Port {port}: {port_status}")
+            # Add open ports to list
+            if port_status == 'open':
+                open_ports.append(port)
         except:
             print(f"Cannot scan port {port}")
+    # Return list of open ports
+    return open_ports
+
+# Function to exploit open ports
+def attack(host, port):
+    # Attack using nmap recon scans
+    return
 
 def main():
     metasploitable_ip = input("Enter the IP address of the target machine: ")
