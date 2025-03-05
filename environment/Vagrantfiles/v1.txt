@@ -1,6 +1,7 @@
-# Needs to add NAT to host-adapter 2 for network connectivity
 # -*- mode: ruby -*-
 # vi: set ft=ruby :
+
+# Provides configurations for the Kali and Metasploitable VMs, main deployment for the CyberFlow Project
 
 # Vagrantfile API/syntax version. Don't touch unless you know what you're doing!
 VAGRANTFILE_API_VERSION = "2"
@@ -14,20 +15,11 @@ Vagrant.configure("2") do |config|
    config.ssh.username = "vagrant"
 
    kali.vm.network "private_network", ip: "192.168.50.101", :adapter => 1, :mac => "080027f34a5d"
-
-   # Add this provisioner block
-   kali.vm.provision "shell", inline: <<-SHELL
-       ip route add default via 10.0.2.2 dev eth1
-      echo "nameserver 8.8.8.8" > /etc/resolv.conf
-      echo "nameserver 8.8.4.4" >> /etc/resolv.conf
-    SHELL
-
    kali.vm.box = "kalilinux/rolling"
    config.vm.box_version = "2020.3.0"
    
    kali.vm.provider "virtualbox" do |vb|
      vb.gui = true
-     vb.customize ["modifyvm", :id, "--natnet1", "name1"]
    end
 
    kali.vm.provider "vmware_workstation" do |vmware|
@@ -50,15 +42,7 @@ Vagrant.configure("2") do |config|
     config.ssh.username = "msfadmin"
     metasploitable.vm.box = "ProfessionallyEvil/metasploitable2"
     metasploitable.vm.box_version = "0.0.1"
-
     metasploitable.vm.network "private_network", ip: "192.168.50.102", :adapter => 1
-
-    metasploitable.vm.provision "shell", inline: <<-SHELL
-        ip route add default via 192.168.50.1
-        echo "nameserver 8.8.8.8" > /etc/resolv.conf
-        echo "nameserver 8.8.4.4" >> /etc/resolv.conf
-    SHELL
-
     metasploitable.vm.provider "virtualbox" do |vb|
       vb.gui = true
     end
