@@ -1,62 +1,57 @@
 import re
 import socket
-import threading
+import json
 import ipaddress
 from concurrent.futures import ThreadPoolExecutor
 
-# Regular expression for port range
-port_range_pattern = re.compile(r"([0-9]+)-([0-9]+)")
+# Regular expression to match port range
+port_range_pattern = re.compile(r"(\d+)-(\d+)")
 
-# Function to scan a single port
-def scan_port(ip, port, open_ports):
-    try:
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            s.settimeout(0.5)  # Shorter timeout for speed
+def scan_port(ip, port, results):
+    """Attempts to connect to the specified port and stores the result."""
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.settimeout(1)
+        try:
             if s.connect_ex((ip, port)) == 0:
-                print(f"[+] {ip}:{port} is open.")
-                open_ports[ip].append(port)
-    except Exception:
-        pass  # Suppress errors
+                results.append((ip, port))
+        except Exception as e:
+            print(f"[-] Error scanning port {port} on {ip}: {e}")
 
-# Get valid CIDR subnet from user
+# Get user input for IP range (CIDR notation or single IP)
 while True:
-    subnet_input = input("\nEnter an IP address or CIDR subnet (e.g., 192.168.1.0/24): ")
+    ip_input = input("\nPlease enter the IP address or CIDR range you want to scan: ")
     try:
-        subnet = ipaddress.ip_network(subnet_input, strict=False)  # Allow single IPs too
-        print(f"Scanning subnet: {subnet}")
+        ip_network = ipaddress.ip_network(ip_input, strict=False)
+        print(f"Scanning {ip_network}...")
         break
     except ValueError:
-        print("Invalid CIDR notation. Try again.")
+        print("Invalid IP address or CIDR notation. Try again.")
 
-# Get valid port range from user
+# Get user input for port range
 while True:
     port_range = input("Enter port range (e.g., 20-80): ")
-    port_range_valid = port_range_pattern.fullmatch(port_range.replace(" ", ""))
+    port_range_valid = port_range_pattern.match(port_range.replace(" ", ""))
     if port_range_valid:
-        port_min, port_max = int(port_range_valid.group(1)), int(port_range_valid.group(2))
-        break
+        port_min, port_max = map(int, port_range_valid.groups())
+        if 0 <= port_min <= 65535 and 0 <= port_max <= 65535 and port_min <= port_max:
+            break
+        else:
+            print("Invalid port numbers. Ensure ports are between 0-65535.")
     else:
-        print("Invalid port range. Try again.")
+        print("Invalid port range format. Try again.")
 
-print(f"\nScanning {subnet} from port {port_min} to {port_max}...\n")
+# Store results
+open_ports = []
 
-# Dictionary to store open ports per IP
-open_ports = {str(ip): [] for ip in subnet.hosts()}
-
-# Thread pool for efficiency
-with ThreadPoolExecutor(max_workers=100) as executor:
-    for ip in subnet.hosts():
+# Use ThreadPoolExecutor for efficient threading
+with ThreadPoolExecutor(max_workers=50) as executor:
+    for ip in ip_network.hosts():  # Iterate over all possible hosts in the network
         for port in range(port_min, port_max + 1):
             executor.submit(scan_port, str(ip), port, open_ports)
 
-# Display results
-print("\nScan complete! Open ports found:")
-found_any = False
-for ip, ports in open_ports.items():
-    if ports:
-        found_any = True
-        print(f"{ip}: {', '.join(map(str, ports))}")
+# Save results to a JSON file
+scan_results = {"scanned_network": str(ip_network), "open_ports": open_ports}
+with open("scan_results.json", "w") as json_file:
+    json.dump(scan_results, json_file, indent=4)
 
-if not found_any:
-    print("No open ports found on any IP.")
-
+print("Scan complete! Results saved to scan_results.json.")
