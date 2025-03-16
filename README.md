@@ -14,6 +14,11 @@ With cybersecurity rapidly evolving and vital in society, many traditional train
 
 They are based on our groups understanding and observation of cybersecurity principles.
 
+## Build Instructions
+
+Navigate to the prototypes/UI folder and run `npm install`, this should generate a modules folder.
+Run `npm server.js` to start the node.js server that serves the files.
+
 ## How it Works
 
 ### INSERT STEP HERE

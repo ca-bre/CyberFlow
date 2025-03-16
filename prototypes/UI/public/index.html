@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Cyberflow UI Prototype</title>
+    <link rel="stylesheet" href="flow_style.css" />
+  </head>
+
+  <body>
+    <div id="editor"></div>
+    <!-- Controls below the diagram -->
+    <div id="controls">
+      <button id="runBtn">Run</button>
+      <button id="exportBtn">Export JSON</button>
+      <button id="importBtn">Import JSON</button>
+      <br />
+      <textarea
+        id="jsonArea"
+        style="width: 90%; height: 60px; margin-top: 8px;"
+      ></textarea>
+
+      <div style="margin-top:8px;">
+        <label for="darkModeCheck">Dark Mode</label>
+        <input type="checkbox" id="darkModeCheck" />
+      </div>
+    </div>
+
+    <script src="flow.js"></script>
+    <script>
+      document.addEventListener('DOMContentLoaded', () => {
+        const diagram = new Diagram(document.getElementById('editor'));
+
+        document.getElementById('runBtn').onclick = () => diagram.runLogic();
+
+        document.getElementById('exportBtn').onclick = () => {
+          document.getElementById('jsonArea').value = JSON.stringify(
+            diagram.exportJSON(),
+            null,
+            2
+          );
+        };
+
+        document.getElementById('importBtn').onclick = () => {
+          const text = document.getElementById('jsonArea').value;
+          try {
+            const parsed = JSON.parse(text);
+            diagram.importJSON(parsed);
+          } catch {
+            alert('Invalid JSON');
+          }
+        };
+
+        const darkCheck = document.getElementById('darkModeCheck');
+        darkCheck.onchange = () => {
+          diagram.setDarkMode(darkCheck.checked);
+        };
+      });
+    </script>
+  </body>
+</html>
