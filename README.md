@@ -17,7 +17,7 @@ They are based on our groups understanding and observation of cybersecurity prin
 ## Build Instructions
 
 Navigate to the prototypes/UI folder and run `npm install`, this should generate a modules folder.
-Run `npm server.js` to start the node.js server that serves the files.
+Run `node server.js` to start the node.js server that serves the files.
 
 ## How it Works
 

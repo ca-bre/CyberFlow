@@ -9,6 +9,8 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.post('/run-python', (req, res) => {
   // The front end can post data to this route
   const inputData = JSON.stringify(req.body);
+  // Switch to 'python' if you don't normally use python3
+  // TODO: Make a toggle or detector
   const pyProcess = spawn('python3', [
     path.join(__dirname, req.body.script),
     // Script needs be specified from the template in the flow.js
