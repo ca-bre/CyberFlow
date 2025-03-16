@@ -27,10 +27,33 @@ class Diagram {
           for (const v of values) {
             sum += parseFloat(v) || 0;
           }
+          console.log(sum);
           return sum;
+        }
+      },
+      SamplePy: {
+        inputs: 1,
+        output: true,
+        async compute (values) {
+          let resp = await callPython({script: "sample.py", some: `${values[0]}`}).then(pyResp => 
+          {
+            return pyResp;
+          });
+          return resp;
         }
       }
     };
+    
+    async function callPython(dataToSend) {
+      const response = await fetch('/run-python', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(dataToSend)
+      });
+      const result = await response.json();
+      console.log('Python result:', result);
+      return result;
+    }
 
     this.darkMode = false;
 
@@ -113,7 +136,11 @@ class Diagram {
     this.connections = this.connections.filter(c => !deadConns.includes(c));
   }
 
-  runLogic() {
+  isAsyncFunction(fn) {
+    return fn && fn.constructor && fn.constructor.name === 'AsyncFunction';
+  }
+
+  async runLogic() {
     // 1) parse standard node values
     for (let n of this.nodes) {
       if (n.nodeType === "standard") {
@@ -124,10 +151,16 @@ class Diagram {
     for (let n of this.nodes) {
       if (n.nodeType !== "standard") {
         const template = this.templates[n.nodeType];
-        if (!template) continue;
-        const inputs = n.getInputValues();
-        let result = template.compute(inputs);
-        n.setValue(result);
+          if (!template) continue;
+          const inputs = n.getInputValues();
+
+        if (this.isAsyncFunction(template.compute)) {
+          let result =  await template.compute(inputs);
+          n.setValue(result.message);
+        } else {
+          let result = template.compute(inputs);
+          n.setValue(result);
+        }
       }
     }
   }
