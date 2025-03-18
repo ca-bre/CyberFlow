@@ -41,6 +41,17 @@ class Diagram {
           });
           return resp;
         }
+      },
+      PortScanner: {
+        inputs: 2,
+        output: true,
+        async compute (values) {
+          let resp = await callPython({script: "cidr_scanner.py", ip:`${values[0]}`, ports: `${values[1]}`}).then(pyResp =>
+          {
+            return pyResp;
+          });
+          return resp;
+        }
       }
     };
     
