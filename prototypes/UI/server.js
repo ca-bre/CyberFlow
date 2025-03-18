@@ -11,7 +11,7 @@ app.post('/run-python', (req, res) => {
   const inputData = JSON.stringify(req.body);
   // Switch to 'python' if you don't normally use python3
   // TODO: Make a toggle or detector
-  const pyProcess = spawn('python3', [
+  const pyProcess = spawn('python', [
     path.join(__dirname, req.body.script),
     // Script needs be specified from the template in the flow.js
     inputData
