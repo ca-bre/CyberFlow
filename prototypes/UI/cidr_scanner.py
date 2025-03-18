@@ -354,7 +354,7 @@ def scan_and_attack(target, ports, execute_metasploit=False, max_targets=10, con
         success_rate = (total_success / total_attempts) * 100
         # print(f"[*] Overall success rate: {success_rate:.1f}% ({total_success}/{total_attempts})")
     save_results_to_json(scan_results, attack_results, json_output)
-    print(json.dumps({"message": scan_results}))
+    print(json.dumps({"message": json.dumps(scan_results)}))
     return attack_results
 
 def main():
