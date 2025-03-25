@@ -63,7 +63,7 @@ class Diagram {
           return resp;
         }
       },
-      VulnerabilityScanner: {
+      VulnerabilitiesScanner: {
         inputs: 1,
         output: true,
         async compute (values) {
@@ -95,37 +95,32 @@ class Diagram {
           return resp;
         }
       },
-      FTPVulnerabilityScanner: {
+      VsftpdScanner: {
         inputs: 1,
         output: true,
         async compute(values) {
-            let scanResults = values[0];
-            // Check if scanResults is a string and try to parse it
-            if (typeof scanResults === 'string') {
-                try {
-                    scanResults = JSON.parse(scanResults);
-                } catch (e) {
-                    console.error("Error parsing scanResults:", e);
-                    return { status: "error", message: "Failed to parse port scanner results", error: e.message };
-                }
-            }
-    
-            // Stringify the scanResults before sending to Python
-            const dataToSend = {
-                script: "ftp_vulnerability_flow.py",
-                scan_results: JSON.stringify(scanResults)
-            };
-    
+          let scanResults = values[0];
+          if (typeof scanResults === 'string') {
             try {
-                let resp = await callPython(dataToSend);
-                return resp;
-            } catch (error) {
-                console.error("Error calling Python script:", error);
-                return { status: "error", message: "Failed to execute Python script", error: error.message };
+              scanResults = JSON.parse(scanResults);
+            } catch (e) {
+              return {
+                status: "error",
+                message: "Failed to parse port scanner results",
+                error: e.message
+              };
             }
+          }
+          let resp = await callPython({
+            script: "vsftpd_scanner.py",
+            scan_results: scanResults
+          }).then(pyResp => {
+            return pyResp;
+          });
+          return resp;
         }
-    }
-    };    
+      }
+    };      
     
     async function callPython(dataToSend) {
       const response = await fetch('/run-python', {
