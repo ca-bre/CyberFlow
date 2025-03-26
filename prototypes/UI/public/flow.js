@@ -52,6 +52,48 @@ class Diagram {
           });
           return resp;
         }
+      },
+      SmileyBackdoor: {
+        inputs: 1,
+        output: true,
+        async compute (values) {
+          let resp = await callPython({script: "smiley_backdoor_flow.py", target: `${values[0]}`}).then(pyResp => {
+            return pyResp;
+          });
+          return resp;
+        }
+      },
+      VulnerabilityScanner: {
+        inputs: 1,
+        output: true,
+        async compute (values) {
+          // Expects the output from PortScanner as input
+          let scanResults = values[0];
+          
+          // If input is a string (which it likely will be from PortScanner node), 
+          // try to parse it as JSON
+          if (typeof scanResults === 'string') {
+            try {
+              scanResults = JSON.parse(scanResults);
+            } catch(e) {
+              return { 
+                status: "error",
+                message: "Failed to parse port scanner results",
+                error: e.message
+              };
+            }
+          }
+          
+          // Pass the scan results to the vulnerability scanner
+          let resp = await callPython({
+            script: "vulnerability_flow.py", 
+            scan_results: scanResults
+          }).then(pyResp => {
+            return pyResp;
+          });
+          
+          return resp;
+        }
       }
     };
     
@@ -561,7 +603,254 @@ class FlowNode {
       }
     } else {
       if (this.resultLabel) {
-        this.resultLabel.innerText = "Result: " + val;
+        // Format objects and arrays for better display
+        let displayValue = val;
+        
+        if (typeof val === 'object' && val !== null) {
+          try {
+            // For SmileyBackdoor, create a custom formatted display
+            if (this.nodeType === "SmileyBackdoor" && val.status === "success") {
+              // Create a pre element for formatting if it doesn't exist
+              if (!this.resultPre) {
+                this.resultPre = document.createElement("div");
+                this.resultPre.style.maxHeight = "350px";
+                this.resultPre.style.overflow = "auto";
+                this.resultPre.style.backgroundColor = "#f8f9fa";
+                this.resultPre.style.padding = "10px";
+                this.resultPre.style.border = "1px solid #ddd";
+                this.resultPre.style.borderRadius = "4px";
+                this.resultPre.style.marginTop = "5px";
+                this.resultPre.style.fontSize = "13px";
+                this.resultPre.style.fontFamily = "Arial, sans-serif";
+                this.body.appendChild(this.resultPre);
+              }
+              
+              // Format backdoor results in a more user-friendly way
+              let html = '';
+              
+              // Add operation status with appropriate color
+              const statusColor = val.status === "success" ? "#28a745" : 
+                                val.status === "partially_successful" ? "#ffc107" : "#dc3545";
+              
+              html += `<div style="margin-bottom:10px;">
+                        <div style="font-weight:bold;font-size:14px;margin-bottom:5px;">Backdoor Operation</div>
+                        <div>Target: <span style="font-weight:bold;">${val.target}</span></div>
+                        <div>Status: <span style="color:${statusColor};font-weight:bold;">${val.status}</span></div>
+                        <div>Timestamp: ${val.timestamp}</div>
+                      </div>`;
+              
+              // Add server information section
+              if (val.steps && val.steps.length > 0) {
+                const checkResult = val.steps.find(step => step.step === "check_target")?.result;
+                if (checkResult) {
+                  html += `<div style="margin-bottom:10px;padding-top:5px;border-top:1px solid #ddd;">
+                            <div style="font-weight:bold;margin-bottom:5px;">Target Information</div>
+                            <div>Server: <span style="font-family:monospace;">${checkResult.server}</span></div>
+                            <div>Detected: ${checkResult.technologies ? checkResult.technologies.join(", ") : "None"}</div>
+                          </div>`;
+                }
+                
+                // Add backdoor details
+                const uploadResult = val.steps.find(step => step.step === "upload_backdoor")?.result;
+                if (uploadResult && uploadResult.status === "success") {
+                  html += `<div style="margin-bottom:10px;padding-top:5px;border-top:1px solid #ddd;">
+                            <div style="font-weight:bold;margin-bottom:5px;">Backdoor Details</div>
+                            <div>Filename: <span style="font-family:monospace;">${uploadResult.backdoor_name}</span></div>
+                            <div>URL: <span style="font-family:monospace;word-break:break-all;">${val.backdoor_url}</span></div>
+                          </div>`;
+                }
+                
+                // Add command execution results
+                const commandResults = val.steps.find(step => step.step === "test_commands")?.results;
+                if (commandResults && commandResults.length > 0) {
+                  html += `<div style="padding-top:5px;border-top:1px solid #ddd;">
+                            <div style="font-weight:bold;margin-bottom:5px;">Command Execution Results</div>`;
+                  
+                  commandResults.forEach(cmd => {
+                    const cmdStatus = cmd.status === "success" ? 
+                      `<span style="color:#28a745;">✓</span>` : 
+                      `<span style="color:#dc3545;">✗</span>`;
+                      
+                    html += `<div style="margin-bottom:8px;">
+                              <div>${cmdStatus} <span style="font-family:monospace;font-weight:bold;">${cmd.command}</span></div>
+                              <div style="background:#272822;color:#f8f8f2;padding:5px;border-radius:3px;margin-top:3px;font-family:monospace;white-space:pre-wrap;">${cmd.output}</div>
+                            </div>`;
+                  });
+                  
+                  html += `</div>`;
+                }
+              }
+              
+              // Add summary message
+              if (val.message) {
+                html += `<div style="margin-top:10px;padding:5px;background:${statusColor};color:white;border-radius:3px;font-weight:bold;">
+                          ${val.message}
+                        </div>`;
+              }
+              
+              // Update the pre element with the formatted HTML
+              this.resultPre.innerHTML = html;
+              this.resultLabel.innerText = "Result: ";
+              return;
+            }
+            // Format the VulnerabilityScanner output nicely
+            else if (this.nodeType === "VulnerabilityScanner" && val.status === "success") {
+              // Create a pre element for formatting if it doesn't exist
+              if (!this.resultPre) {
+                this.resultPre = document.createElement("div");
+                this.resultPre.style.maxHeight = "350px";
+                this.resultPre.style.overflow = "auto";
+                this.resultPre.style.backgroundColor = "#f8f9fa";
+                this.resultPre.style.padding = "10px";
+                this.resultPre.style.border = "1px solid #ddd";
+                this.resultPre.style.borderRadius = "4px";
+                this.resultPre.style.marginTop = "5px";
+                this.resultPre.style.fontSize = "13px";
+                this.resultPre.style.fontFamily = "Arial, sans-serif";
+                this.body.appendChild(this.resultPre);
+              }
+              
+              // Format vulnerability results in a more user-friendly way
+              let html = '';
+              
+              // Add scan summary
+              const summary = val.summary;
+              
+              html += `<div style="margin-bottom:15px;">
+                        <div style="font-weight:bold;font-size:15px;margin-bottom:5px;color:#2c3e50;">Vulnerability Scan Summary</div>
+                        <div style="background:#e9f7ef;padding:10px;border-radius:4px;border-left:4px solid #27ae60;">
+                          <div>Hosts scanned: <span style="font-weight:bold;">${summary.total_hosts}</span></div>
+                          <div>Vulnerable hosts: <span style="font-weight:bold;">${summary.vulnerable_hosts}</span></div>
+                          <div>Total vulnerabilities: <span style="font-weight:bold;">${summary.total_vulnerabilities}</span></div>
+                          <div style="margin-top:5px;">Severity breakdown:</div>
+                          <div style="display:flex;margin-top:3px;">
+                            <div style="flex:1;text-align:center;background:#e74c3c;color:white;padding:3px;margin-right:2px;border-radius:3px;">Critical: ${summary.severity_breakdown.Critical}</div>
+                            <div style="flex:1;text-align:center;background:#e67e22;color:white;padding:3px;margin-right:2px;border-radius:3px;">High: ${summary.severity_breakdown.High}</div>
+                            <div style="flex:1;text-align:center;background:#f1c40f;color:white;padding:3px;margin-right:2px;border-radius:3px;">Medium: ${summary.severity_breakdown.Medium}</div>
+                            <div style="flex:1;text-align:center;background:#3498db;color:white;padding:3px;border-radius:3px;">Low: ${summary.severity_breakdown.Low}</div>
+                          </div>
+                        </div>
+                      </div>`;
+              
+              // Add host-specific information
+              if (val.details) {
+                html += `<div style="font-weight:bold;font-size:14px;margin-bottom:5px;color:#2c3e50;">Host Details</div>`;
+                
+                for (const [ip, hostData] of Object.entries(val.details)) {
+                  if (!hostData.vulnerabilities || hostData.vulnerabilities.length === 0) {
+                    continue;  // Skip hosts with no vulnerabilities
+                  }
+                  
+                  // Risk level color
+                  const riskLevelColors = {
+                    "Critical": "#e74c3c",
+                    "High": "#e67e22",
+                    "Medium": "#f1c40f",
+                    "Low": "#3498db"
+                  };
+                  
+                  const riskColor = riskLevelColors[hostData.risk_level] || "#3498db";
+                  
+                  html += `<div style="margin-bottom:15px;border:1px solid #ddd;border-radius:4px;overflow:hidden;">
+                            <div style="background:${riskColor};color:white;padding:8px;font-weight:bold;">
+                              ${ip} - Risk: ${hostData.risk_level} (Score: ${hostData.risk_score}/100)
+                            </div>
+                            <div style="padding:10px;">`;
+                  
+                  // Open ports list
+                  if (hostData.open_ports && hostData.open_ports.length > 0) {
+                    html += `<div style="margin-bottom:10px;">
+                              <div style="font-weight:bold;margin-bottom:3px;">Open Ports:</div>
+                              <div style="display:flex;flex-wrap:wrap;">`;
+                    
+                    hostData.open_ports.forEach(portInfo => {
+                      html += `<div style="background:#f1f1f1;padding:3px 8px;margin:2px;border-radius:3px;font-family:monospace;">${portInfo[0]}/${portInfo[1]}</div>`;
+                    });
+                    
+                    html += `</div></div>`;
+                  }
+                  
+                  // Vulnerabilities
+                  if (hostData.vulnerabilities && hostData.vulnerabilities.length > 0) {
+                    html += `<div>
+                              <div style="font-weight:bold;margin-bottom:5px;">Vulnerabilities:</div>`;
+                    
+                    hostData.vulnerabilities.forEach(vuln => {
+                      const severityColors = {
+                        "Critical": "#e74c3c",
+                        "High": "#e67e22",
+                        "Medium": "#f1c40f",
+                        "Low": "#3498db"
+                      };
+                      
+                      const severityColor = severityColors[vuln.severity] || "#3498db";
+                      
+                      html += `<div style="margin-bottom:10px;border-left:4px solid ${severityColor};padding-left:10px;">
+                                <div style="font-weight:bold;">${vuln.name}</div>
+                                <div style="display:flex;margin:5px 0;">
+                                  <div style="background:${severityColor};color:white;padding:2px 5px;border-radius:3px;margin-right:5px;font-size:12px;">${vuln.severity}</div>
+                                  <div style="background:#34495e;color:white;padding:2px 5px;border-radius:3px;font-size:12px;">${vuln.cve}</div>
+                                </div>
+                                <div style="font-size:13px;margin-bottom:5px;">${vuln.description}</div>
+                                <div style="font-family:monospace;font-size:12px;background:#f8f9fa;padding:5px;border-radius:3px;margin-bottom:5px;white-space:pre-wrap;">${vuln.details}</div>
+                                <div style="background:#eaf2f8;padding:5px;border-radius:3px;font-size:12px;border-left:3px solid #3498db;">
+                                  <strong>Remediation:</strong> ${vuln.remediation}
+                                </div>
+                              </div>`;
+                    });
+                    
+                    html += `</div>`;
+                  }
+                  
+                  html += `</div></div>`;
+                }
+              }
+              
+              // Update the pre element with the formatted HTML
+              this.resultPre.innerHTML = html;
+              this.resultLabel.innerText = "Result: ";
+              return;
+            }
+            // For other template nodes, use standard JSON formatting
+            else {
+              // Convert the object to a formatted string with 2-space indentation
+              displayValue = JSON.stringify(val, null, 2);
+              
+              // Create a pre element for formatting if it doesn't exist
+              if (!this.resultPre) {
+                this.resultPre = document.createElement("pre");
+                this.resultPre.style.maxHeight = "300px";
+                this.resultPre.style.overflow = "auto";
+                this.resultPre.style.backgroundColor = "#f5f5f5";
+                this.resultPre.style.padding = "8px";
+                this.resultPre.style.border = "1px solid #ddd";
+                this.resultPre.style.borderRadius = "4px";
+                this.resultPre.style.marginTop = "5px";
+                this.resultPre.style.fontSize = "12px";
+                this.resultPre.style.fontFamily = "monospace";
+                this.resultPre.style.whiteSpace = "pre-wrap";
+                this.body.appendChild(this.resultPre);
+              }
+              
+              // Update the pre element with the formatted JSON
+              this.resultPre.textContent = displayValue;
+              this.resultLabel.innerText = "Result: ";
+              return;
+            }
+          } catch (e) {
+            // Fall back to default if JSON.stringify fails
+            displayValue = String(val);
+          }
+        }
+        
+        // For simple values, just show them in the label
+        this.resultLabel.innerText = "Result: " + displayValue;
+        
+        // Remove the pre element if it exists for non-object values
+        if (this.resultPre && this.resultPre.parentNode) {
+          this.resultPre.parentNode.removeChild(this.resultPre);
+          this.resultPre = null;
+        }
       }
     }
   }
@@ -607,10 +896,9 @@ class Connection {
     this.path.setAttribute("d", pathData);
   }
 
-  // Could use this to start with svg path removal
-  // remove() {
-  //   if (this.path && this.path.parentNode) {
-  //     this.path.parentNode.removeChild(this.path);
-  //   }
-  // }
+  remove() {
+    if (this.path && this.path.parentNode) {
+      this.path.parentNode.removeChild(this.path);
+    }
+  }
 }
