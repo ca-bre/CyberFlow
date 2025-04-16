@@ -63,7 +63,7 @@ class Diagram {
           return resp;
         }
       },
-      VulnerabilityScanner: {
+      VulnerabilitiesScanner: {
         inputs: 1,
         output: true,
         async compute (values) {
@@ -94,8 +94,33 @@ class Diagram {
           
           return resp;
         }
+      },
+      VsftpdScanner: {
+        inputs: 1,
+        output: true,
+        async compute(values) {
+          let scanResults = values[0];
+          if (typeof scanResults === 'string') {
+            try {
+              scanResults = JSON.parse(scanResults);
+            } catch (e) {
+              return {
+                status: "error",
+                message: "Failed to parse port scanner results",
+                error: e.message
+              };
+            }
+          }
+          let resp = await callPython({
+            script: "vsftpd_scanner.py",
+            scan_results: scanResults
+          }).then(pyResp => {
+            return pyResp;
+          });
+          return resp;
+        }
       }
-    };
+    };      
     
     async function callPython(dataToSend) {
       const response = await fetch('/run-python', {
