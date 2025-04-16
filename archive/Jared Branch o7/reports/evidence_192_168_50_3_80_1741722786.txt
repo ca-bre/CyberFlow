@@ -1,0 +1,7 @@
+=== /etc/passwd (partial) ===
+root:x:0:0:root:/root:/bin/bash
+daemon:x:1:1:daemon:/usr/sbin:/usr/sbin/nologin
+=== User Identity ===
+uid=0(root) gid=0(root) groups=0(root)
+=== Operating System ===
+Linux target 5.4.0-42-generic #46-Ubuntu SMP Fri Jul 10 00:24:02 UTC 2020 x86_64 x86_64 x86_64 GNU/Linux

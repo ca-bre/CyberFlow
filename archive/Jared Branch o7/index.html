@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Cyberflow UI Prototype</title>
+    <link rel="stylesheet" href="flow_style.css" />
+    <style>
+      #targetInput {
+        width: 200px;
+        margin-right: 10px;
+      }
+      #reportArea {
+        margin-top: 20px;
+        border: 1px solid #ddd;
+        padding: 10px;
+        max-height: 300px;
+        overflow-y: auto;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div id="editor"></div>
+    
+    <!-- Controls below the diagram -->
+    <div id="controls">
+      <input type="text" id="targetInput" placeholder="Enter target IP address" value="192.168.50.3">
+      <button id="runBtn">Scan Target</button>
+      <button id="exportBtn">Export JSON</button>
+      <button id="importBtn">Import JSON</button>
+      
+      <div id="reportArea">
+        <h3>Scan Reports</h3>
+        <div id="reportList"></div>
+      </div>
+
+      <div style="margin-top:8px;">
+        <label for="darkModeCheck">Dark Mode</label>
+        <input type="checkbox" id="darkModeCheck" />
+      </div>
+    </div>
+
+    <script src="flow.js"></script>
+    <script src="cyberflow_nodes.js"></script>
+    <script>
+      document.addEventListener('DOMContentLoaded', () => {
+        const diagram = new Diagram(document.getElementById('editor'));
+
+        // Register custom nodes with more specific templates
+        diagram.templates.scanner = { 
+          inputs: 0, 
+          output: true,
+          compute: (values) => {
+            // Return scan results
+            return values[0] || null;
+          }
+        };
+        diagram.templates.vulnerability = { 
+          inputs: 1, 
+          output: true,
+          compute: (values) => {
+            // Process vulnerability results
+            return values[0] || null;
+          }
+        };
+        diagram.templates.attacker = { 
+          inputs: 1, 
+          output: true,
+          compute: (values) => {
+            // Process attack results
+            return values[0] || null;
+          }
+        };
+
+        // Modify run button to use target input
+        document.getElementById('runBtn').onclick = () => {
+          const targetIp = document.getElementById('targetInput').value.trim();
+          
+          // Clear previous diagram
+          diagram.nodes.forEach(node => diagram.removeNode(node));
+          
+          // Create scanner node
+          const scannerNode = diagram.createNode(100, 100, 'scanner');
+          scannerNode.header.innerText = `Scanner: ${targetIp}`;
+          
+          // Set target IP in the node
+          scannerNode.targetInput = document.createElement('input');
+          scannerNode.targetInput.type = 'hidden';
+          scannerNode.targetInput.value = targetIp;
+          scannerNode.body.appendChild(scannerNode.targetInput);
+          
+          // Automatically run the scan
+          diagram.runLogic();
+        };
+
+        document.getElementById('exportBtn').onclick = () => {
+          document.getElementById('jsonArea').value = JSON.stringify(
+            diagram.exportJSON(),
+            null,
+            2
+          );
+        };
+        
+        document.getElementById('importBtn').onclick = () => {
+          const text = document.getElementById('jsonArea').value;
+          try {
+            const parsed = JSON.parse(text);
+            diagram.importJSON(parsed);
+          } catch {
+            alert('Invalid JSON');
+          }
+        };
+
+        const darkCheck = document.getElementById('darkModeCheck');
+        darkCheck.onchange = () => {
+          diagram.setDarkMode(darkCheck.checked);
+        };
+
+        // Fetch and display available reports
+        function updateReportList() {
+          fetch('/api/reports')
+            .then(response => response.json())
+            .then(reports => {
+              const reportList = document.getElementById('reportList');
+              reportList.innerHTML = ''; // Clear existing reports
+              
+              reports.forEach(report => {
+                const reportLink = document.createElement('a');
+                reportLink.href = report.path;
+                reportLink.target = '_blank';
+                reportLink.textContent = `${report.filename} (${(report.size / 1024).toFixed(2)} KB)`;
+                
+                const reportItem = document.createElement('div');
+                reportItem.appendChild(reportLink);
+                reportList.appendChild(reportItem);
+              });
+            })
+            .catch(error => {
+              console.error('Error fetching reports:', error);
+            });
+        }
+
+        // Update report list periodically
+        updateReportList();
+        setInterval(updateReportList, 30000); // Update every 30 seconds
+      });
+    </script>
+  </body>
+</html>
