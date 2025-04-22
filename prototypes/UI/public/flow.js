@@ -134,20 +134,6 @@ class Diagram {
     }
 
     this.darkMode = false;
-
-    // Diagram-level context menu (blank space => create nodes)
-    this.contextMenu = document.createElement("ul");
-    this.contextMenu.classList.add("context-menu");
-    this.contextMenu.style.display = "none";
-    document.body.appendChild(this.contextMenu);
-
-    // Show context menu on right-click in blank area
-    this.root.addEventListener("contextmenu", (e) => this.showContextMenu(e));
-
-    // Hide menu on outside click
-    document.addEventListener("click", () => {
-      this.contextMenu.style.display = "none";
-    });
   }
 
   setDarkMode(enabled) {
@@ -159,42 +145,6 @@ class Diagram {
       this.root.style.backgroundColor = "#ecf1f1";
       this.root.style.color = "#000";
     }
-  }
-
-  showContextMenu(e) {
-    // Only show if user right-clicked blank space (the container or panDiv or svg)
-    if (e.target !== this.root && e.target !== this.panDiv && e.target !== this.svg) {
-      return; 
-    }
-    e.preventDefault();
-
-    this.contextMenu.innerHTML = "";
-
-    // 1) Standard Node for regular values
-    const liStd = document.createElement("li");
-    liStd.innerText = "Create Standard Node";
-    liStd.onclick = (evt) => {
-      evt.stopPropagation();
-      this.createNode(e.clientX, e.clientY, "standard");
-      this.contextMenu.style.display = "none";
-    };
-    this.contextMenu.appendChild(liStd);
-
-    // 2) Template nodes
-    Object.keys(this.templates).forEach((tplName) => {
-      const li = document.createElement("li");
-      li.innerText = tplName;
-      li.onclick = (evt) => {
-        evt.stopPropagation();
-        this.createNode(e.clientX, e.clientY, tplName);
-        this.contextMenu.style.display = "none";
-      };
-      this.contextMenu.appendChild(li);
-    });
-
-    this.contextMenu.style.left = e.clientX + "px";
-    this.contextMenu.style.top = e.clientY + "px";
-    this.contextMenu.style.display = "block";
   }
 
   createNode(x, y, nodeType) {
@@ -304,8 +254,8 @@ let NODE_COUNTER = 1;
 class FlowNode {
   constructor(diagram, x, y, nodeType) {
     this.diagram = diagram;
-    this.x = x;
-    this.y = y;
+    this.x = x - diagram.root.getBoundingClientRect().left;
+    this.y = y - diagram.root.getBoundingClientRect().top;
     this.nodeType = nodeType;
     this.id = NODE_COUNTER++;
 
