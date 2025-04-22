@@ -119,6 +119,58 @@ class Diagram {
           });
           return resp;
         }
+      },
+      ShellshockScanner: {
+        inputs: 1,
+        output: true,
+        async compute(values) {
+          // Expects the output from PortScanner as input
+          let scanResults = values[0];
+          
+          // If input is a string (which it likely will be from PortScanner node), 
+          // try to parse it as JSON
+          if (typeof scanResults === 'string') {
+            try {
+              scanResults = JSON.parse(scanResults);
+            } catch(e) {
+              return { 
+                status: "error",
+                message: "Failed to parse port scanner results",
+                error: e.message
+              };
+            }
+          }
+          
+          // Pass the scan results to the shellshock scanner
+          let resp = await callPython({
+            script: "shellshock_scanner.py", 
+            scan_results: scanResults
+          }).then(pyResp => {
+            return pyResp;
+          });
+          
+          return resp;
+        }
+      },
+      ShellshockExploit: {
+        inputs: 3,
+        output: true,
+        async compute(values) {
+          let target = values[0];
+          let cgiPath = values[1] || "/cgi-bin/vulnerable.cgi";
+          let command = values[2] || "echo 'Shellshock Test'";
+          
+          let resp = await callPython({
+            script: "shellshock_exploit.py",
+            target: target,
+            cgi_path: cgiPath,
+            command: command
+          }).then(pyResp => {
+            return pyResp;
+          });
+          
+          return resp;
+        }
       }
     };      
     
