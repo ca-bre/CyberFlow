@@ -171,8 +171,6 @@ class Diagram {
           
           return resp;
         }
-      },
-      
     };      
     
     async function callPython(dataToSend) {
