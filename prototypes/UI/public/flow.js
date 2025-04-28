@@ -57,12 +57,83 @@ class Diagram {
         inputs: 1,
         output: true,
         async compute (values) {
-          let resp = await callPython({script: "smiley_backdoor_flow.py", target: `${values[0]}`}).then(pyResp => {
-            return pyResp;
+          // --- START OF CORRECTED CODE ---
+          console.log("SmileyBackdoor input value:", values[0]); // Good for debugging
+
+          let targetStr = "example.com"; // Default fallback URL
+
+          // Check if the input exists and is not null
+          if (values && values[0]) {
+            const inputValue = values[0];
+
+            // Handle Object Input
+            if (typeof inputValue === 'object') {
+              console.log("Input is an object. Attempting to extract URL.");
+              // Option 1: Does the object have a meaningful toString()? (Unlikely for plain objects)
+              // Note: We avoid calling toString directly if it's the default [object Object]
+              if (typeof inputValue.toString === 'function' && inputValue.toString() !== '[object Object]') {
+                 targetStr = inputValue.toString();
+                 console.log("Used object's toString() method:", targetStr);
+              }
+              // Option 2: Check common properties that might contain a URL
+              else if (typeof inputValue.url === 'string' && inputValue.url.trim() !== '') {
+                targetStr = inputValue.url.trim();
+                console.log("Used object's 'url' property:", targetStr);
+              } else if (typeof inputValue.href === 'string' && inputValue.href.trim() !== '') {
+                targetStr = inputValue.href.trim();
+                 console.log("Used object's 'href' property:", targetStr);
+              } else if (typeof inputValue.link === 'string' && inputValue.link.trim() !== '') {
+                targetStr = inputValue.link.trim();
+                 console.log("Used object's 'link' property:", targetStr);
+              }
+              // Option 3: Stringify and search for a URL pattern (less reliable)
+              else if (typeof JSON.stringify === 'function') {
+                try {
+                  const jsonStr = JSON.stringify(inputValue);
+                  const urlMatch = jsonStr.match(/"(https?:\/\/[^"]+)"/); // Find first http/https URL in quotes
+                  if (urlMatch && urlMatch[1]) {
+                    targetStr = urlMatch[1];
+                    console.log("Found URL via JSON stringify:", targetStr);
+                  } else {
+                     console.log("Could not find URL property or pattern in object. Using fallback.");
+                  }
+                } catch (e) {
+                   console.log("Could not stringify object. Using fallback.", e);
+                }
+              } else {
+                 console.log("Cannot process object further. Using fallback.");
+              }
+            }
+            // Handle String or other Primitive Input
+            else {
+              console.log("Input is not an object. Converting to string.");
+              targetStr = String(inputValue).trim();
+            }
+          } else {
+             console.log("Input is empty or null. Using fallback.");
+          }
+
+          // Ensure targetStr is not empty after processing, otherwise use fallback
+          if (!targetStr || targetStr.trim() === '') {
+            console.log("Processed target string is empty. Reverting to fallback.");
+            targetStr = "example.com";
+          }
+
+          // Note: We are NOT removing http/https prefixes here.
+          // The Python script 'smiley_backdoor_flow.py' handles URL normalization.
+          console.log("Final processed target:", targetStr);
+
+          // Call the Python script with the extracted/processed target string
+          let resp = await callPython({
+             script: "smiley_backdoor_flow.py",
+             target: targetStr // Pass the cleaned-up string
+          }).then(pyResp => {
+             return pyResp;
           });
+          // --- END OF CORRECTED CODE ---
           return resp;
         }
-      },
+      }, // Make sure there's a comma here if other templates follow,
       VulnerabilitiesScanner: {
         inputs: 1,
         output: true,
@@ -119,60 +190,8 @@ class Diagram {
           });
           return resp;
         }
-      },
-      ShellshockScanner: {
-        inputs: 1,
-        output: true,
-        async compute(values) {
-          // Expects the output from PortScanner as input
-          let scanResults = values[0];
-          
-          // If input is a string (which it likely will be from PortScanner node), 
-          // try to parse it as JSON
-          if (typeof scanResults === 'string') {
-            try {
-              scanResults = JSON.parse(scanResults);
-            } catch(e) {
-              return { 
-                status: "error",
-                message: "Failed to parse port scanner results",
-                error: e.message
-              };
-            }
-          }
-          
-          // Pass the scan results to the shellshock scanner
-          let resp = await callPython({
-            script: "shellshock_scanner.py", 
-            scan_results: scanResults
-          }).then(pyResp => {
-            return pyResp;
-          });
-          
-          return resp;
-        }
-      },
-      ShellshockExploit: {
-        inputs: 3,
-        output: true,
-        async compute(values) {
-          let target = values[0];
-          let cgiPath = values[1] || "/cgi-bin/vulnerable.cgi";
-          let command = values[2] || "echo 'Shellshock Test'";
-          
-          let resp = await callPython({
-            script: "shellshock_exploit.py",
-            target: target,
-            cgi_path: cgiPath,
-            command: command
-          }).then(pyResp => {
-            return pyResp;
-          });
-          
-          return resp;
-        }
-    }
-  }
+      }
+    };      
     
     async function callPython(dataToSend) {
       const response = await fetch('/run-python', {
@@ -186,6 +205,20 @@ class Diagram {
     }
 
     this.darkMode = false;
+
+    // Diagram-level context menu (blank space => create nodes)
+    this.contextMenu = document.createElement("ul");
+    this.contextMenu.classList.add("context-menu");
+    this.contextMenu.style.display = "none";
+    document.body.appendChild(this.contextMenu);
+
+    // Show context menu on right-click in blank area
+    this.root.addEventListener("contextmenu", (e) => this.showContextMenu(e));
+
+    // Hide menu on outside click
+    document.addEventListener("click", () => {
+      this.contextMenu.style.display = "none";
+    });
   }
 
   setDarkMode(enabled) {
@@ -197,6 +230,42 @@ class Diagram {
       this.root.style.backgroundColor = "#ecf1f1";
       this.root.style.color = "#000";
     }
+  }
+
+  showContextMenu(e) {
+    // Only show if user right-clicked blank space (the container or panDiv or svg)
+    if (e.target !== this.root && e.target !== this.panDiv && e.target !== this.svg) {
+      return; 
+    }
+    e.preventDefault();
+
+    this.contextMenu.innerHTML = "";
+
+    // 1) Standard Node for regular values
+    const liStd = document.createElement("li");
+    liStd.innerText = "Create Standard Node";
+    liStd.onclick = (evt) => {
+      evt.stopPropagation();
+      this.createNode(e.clientX, e.clientY, "standard");
+      this.contextMenu.style.display = "none";
+    };
+    this.contextMenu.appendChild(liStd);
+
+    // 2) Template nodes
+    Object.keys(this.templates).forEach((tplName) => {
+      const li = document.createElement("li");
+      li.innerText = tplName;
+      li.onclick = (evt) => {
+        evt.stopPropagation();
+        this.createNode(e.clientX, e.clientY, tplName);
+        this.contextMenu.style.display = "none";
+      };
+      this.contextMenu.appendChild(li);
+    });
+
+    this.contextMenu.style.left = e.clientX + "px";
+    this.contextMenu.style.top = e.clientY + "px";
+    this.contextMenu.style.display = "block";
   }
 
   createNode(x, y, nodeType) {
@@ -306,8 +375,8 @@ let NODE_COUNTER = 1;
 class FlowNode {
   constructor(diagram, x, y, nodeType) {
     this.diagram = diagram;
-    this.x = x - diagram.root.getBoundingClientRect().left;
-    this.y = y - diagram.root.getBoundingClientRect().top;
+    this.x = x;
+    this.y = y;
     this.nodeType = nodeType;
     this.id = NODE_COUNTER++;
 
