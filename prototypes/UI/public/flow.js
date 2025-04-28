@@ -171,7 +171,8 @@ class Diagram {
           
           return resp;
         }
-    };      
+    }
+  }
     
     async function callPython(dataToSend) {
       const response = await fetch('/run-python', {
