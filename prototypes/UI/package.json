@@ -2,9 +2,9 @@
     "name": "cyberflow",
     "version": "1.0.0",
     "dependencies": {
-      "express": "^4.18.2"
+        "express": "^4.21.2"
     },
     "scripts": {
-      "start": "node server.js"
+        "start": "node server.js"
     }
-  }
+}
